@@ -69,3 +69,19 @@ function Kazzak.Boop.API:UnitCastingInfo(unit)
 		notInterruptible = notInterruptible
 	}
 end
+
+function Kazzak.Boop.API:GetTalentInfo(row, column)
+	talentID, name, texture, selected, available,
+	spellID, tier, column = GetTalentInfo(row, column, 1)
+
+	return {
+		talentID = talentID,
+		name = name,
+		texture = texture,
+		selected = selected,
+		available = available,
+		spellID = spellID,
+		tier = tier,
+		column = column
+	}
+end
