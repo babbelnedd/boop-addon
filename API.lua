@@ -63,7 +63,24 @@ function Kazzak.Boop.API:UnitCastingInfo(unit)
 		text = text,
 		texture = texture,
 		startTime = startTime,
-		endtime = endtime,
+		endTime = endTime,
+		isTradeSkill = isTradeSkill,
+		castID = castID,
+		notInterruptible = notInterruptible
+	}
+end
+
+function Kazzak.Boop.API:UnitChannelInfo(unit)
+	name, subText, text, texture, startTime,
+	endTime, isTradeSkill, notInterruptible = UnitChannelInfo(unit)
+
+	return {
+		name = name,
+		subText = subText,
+		text = text,
+		texture = texture,
+		startTime = startTime,
+		endTime = endTime,
 		isTradeSkill = isTradeSkill,
 		castID = castID,
 		notInterruptible = notInterruptible
@@ -83,5 +100,15 @@ function Kazzak.Boop.API:GetTalentInfo(row, column)
 		spellID = spellID,
 		tier = tier,
 		column = column
+	}
+end
+
+function Kazzak.Boop.API:GetSpellCharges(spell)
+	charges, maxCharges, start, duration = GetSpellCharges(spell)
+	return {
+		charges = charges,
+		maxCharges = maxCharges,
+		start = start,
+		duration = duration
 	}
 end
