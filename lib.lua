@@ -1,5 +1,5 @@
 local L = Kazzak.Boop.Lib
-local A = Kazzak.Boop.API
+local API = Kazzak.Boop.API
 local T = Kazzak.Boop.Types
 local UI = Kazzak.Boop.UI
 local H = Kazzak.Boop.Helper
@@ -18,6 +18,21 @@ function Kazzak.Boop.Lib:GroupMembers(reversed, forceParty)
         i = i + (reversed and -1 or 1)
         return ret
     end
+end
+
+function Kazzak.Boop.Lib:Auras(unit, filter)
+  local i = 0
+
+  return function()
+    local aura
+    while i < 41 do
+      i = i + 1
+      aura = API:UnitAura(unit, i, filter)
+      if aura.name == nil then return nil end
+      return aura
+    end
+    return nil
+  end
 end
 
 function Kazzak.Boop.Lib:GetSpellIcon(name)
@@ -43,4 +58,16 @@ end
 function Kazzak.Boop.Lib:GetDurationInfo(name)
     local start, duration = GetSpellCooldown(name)
     return duration, start + duration
+end
+
+function Kazzak.Boop.Lib:GetGCD(id)
+  local spell = API:GetSpellInfo(id)
+  local cd = L:GetRemainingCooldown(spell.name, true)
+  local gcd = L:GetRemainingCooldown(spell.name, false)
+  if cd <= 0 and gcd > 0 then
+    local now = GetTime()
+    return gcd, now+gcd
+  else
+    return false
+  end
 end

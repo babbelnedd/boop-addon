@@ -85,7 +85,9 @@ end
 function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 	-- Problems:
 	-- changing a talent makes this throw
+	local env = env
 	local spellID = spellID
+	local opt = opt or {}
 
 	if type(spellID) == 'table' then
 		for i, sid in ipairs(spellID) do
@@ -95,17 +97,26 @@ function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 			end
 		end
 	end
-
-	local env = env
+	env.selectedTalent = spellID
 	local region = WeakAuras.regions[env.id].region
-	local opt = opt or {}
 	H:SetOpt(opt, 'threshold', 3)
 	H:SetOpt(opt, 'useBuff', true)
   H:SetOpt(opt, 'color', {
 			border = {
-  			active = {r = 0.2, g = 0.7, b = 0.96, a = 1},
+  			active = {r = 0, g = 1, b = 1, a = 1},
   			default = {r = 1, g = 1, b = 1, a = 1},
-  			cooldown = {r = 0.33, g = 0.33, b = 0.33, a = 1}}})
+  			cooldown = {r = 0.33, g = 0.33, b = 0.33, a = 1}
+			},
+			overlay = {
+				default = {r = 0.1, g = 0.1, b = 0.1, a = 0.75},
+				active = {r=0, g=0.75,b=0.75, a=0.75}
+			},
+			text = {
+				default = {r = 1, g = 1, b = 1, a = 1},
+				active = {r=0, g=1,b=1, a=1},
+				threshold = {r=1, g=0, b=0, a=1}
+			}
+		})
 
 	env.spellID = spellID
 	env.name = API:GetSpellInfo(spellID).name
@@ -137,10 +148,9 @@ function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 	function env:Update()
 		local cd = L:GetRemainingCooldown(self.name, true)
 		local ov = self.texture.overlay
-		local c = self.text.center
+		local center = self.text.center
 
 		if cd > 0 then
-			local active = false
 			local aura = API:UnitBuff('player', self.name)
 			local active = aura.name ~= nil
 			local start, dur = GetSpellCooldown(self.name)
@@ -151,29 +161,39 @@ function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 			if active and opt.useBuff == true then
 				local c = opt.color.border.active
 				env.texture.border.texture:SetVertexColor(c.r, c.g, c.b, c.a)
+				c = opt.color.overlay.active
+				env.texture.overlay.texture:SetVertexColor(c.r, c.g, c.b, c.a)
+				c = opt.color.text.active
+				env.text.center:SetTextColor(c.r, c.g, c.b, c.a)
 				rem = (aura.expires - GetTime())
 				height = maxH - math.floor((rem / (aura.duration / 100)) * (maxH / 100))
 				region:Color(1, 1, 1, 1)
 			else
 				local c = opt.color.border.cooldown
 				env.texture.border.texture:SetVertexColor(c.r, c.g, c.b, c.a)
+				c = opt.color.overlay.default
+				env.texture.overlay.texture:SetVertexColor(c.r, c.g, c.b, c.a)
 				height = math.floor(cd / (dur / 100) * (maxH / 100))
 				rem = cd
+
 				if rem <= opt.threshold and not active then
-					env.text.center:SetTextColor(1, 0, 0, 1)
+					c = opt.color.text.threshold
+					env.text.center:SetTextColor(c.r, c.g, c.b, c.a)
 				else
-					env.text.center:SetTextColor(1, 1, 1, 1)
+					c = opt.color.text.default
+					env.text.center:SetTextColor(c.r, c.g, c.b, c.a)
 				end
+
 				region:Color(0.6, 0.6, 0.6, 1)
 			end
 
 			ov:SetHeight(height)
 			ov:Show()
 			if rem < 1 then rem = H:Round(cd, 1) else rem = H:Round(rem) end
-			c:SetText(H:ConvertSecToMS(rem))
-			c:Show()
+			center:SetText(H:ConvertSecToMS(rem))
+			center:Show()
 		else
-			c:Hide()
+			center:Hide()
 			ov:Hide()
 			local c = opt.color.border.default
 			env.texture.border.texture:SetVertexColor(c.r, c.g, c.b, c.a)
@@ -509,23 +529,25 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 			end
 		end
 	end
-	function cb:UpdateTexts()
+	function cb:UpdateTexts(isActive)
 		local rem = H:Round(select(2, self:DurationInfo()) - GetTime(), 1)
 		if rem > 0 then
 			if not string.match(rem, '%.') then rem = rem..'.0' end
 			self.text.left:SetText(rem)
+		else
+			self.text.left:SetText('')
 		end
 		self.text.center:SetText(self:GetName())
 		self.text.right:SetText(opt.backdrop:GetText(opt.backdrop:GetValues()))
 	end
-	function cb:UpdateAction()
+	function cb:UpdateAction(isActive)
 		if opt.action:IsActive() then
 			region.bar:SetForegroundColor(opt.action.color.r, opt.action.color.g, opt.action.color.b, opt.action.color.a)
 		else
 			region.bar:SetForegroundColor(opt.defaultColor.r, opt.defaultColor.g, opt.defaultColor.b, opt.defaultColor.a)
 		end
 	end
-	function cb:UpdateIcon()
+	function cb:UpdateIcon(isActive)
 		if opt.icon.enabled == true then
 				local x = API:UnitCastingInfo(opt.unit)
 				if x.name == nil then x = API:UnitChannelInfo(opt.unit) end
