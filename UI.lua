@@ -443,7 +443,8 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 
 	local function CreateStatusBar()
 		--local f = CreateFrame('statusbar', nil, opt.backdrop.parent)
-		local f = CreateFrame('statusbar', nil, UIParent)
+		--local f = CreateFrame('statusbar', nil, UIParent)
+		local f = CreateFrame('statusbar', nil, region)
 		f:SetFrameLevel(math.max(0, region:GetFrameLevel() - 1))
 		f:SetPoint('TOPLEFT', region, 'TOPLEFT', 0, 0)
 		f:SetSize(region:GetSize())
@@ -455,7 +456,7 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 												opt.backdrop.color.b, opt.backdrop.color.a)
 		return f
 	end
-
+	local XYZ
 	local function CreateIcon()
 		if opt.icon.enabled ~= true then return nil end
 		local iFrame = CreateFrame('frame', nil, region)
@@ -464,7 +465,7 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 		local bTex = iFrame:CreateTexture(nil, 'BACKGROUND')
 		local h = opt.icon.height or opt.icon.anchor.relativeTo:GetHeight()
 		local w = opt.icon.width or opt.icon.anchor.relativeTo:GetHeight()
-
+		XYZ = bFrame
 		bTex:SetTexture(opt.icon.background)
 		bTex:SetAllPoints(bFrame)
 		bTex:SetVertexColor(0, 0, 0, 1)
@@ -495,7 +496,7 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 				center = UI:CreateText(cb.backdrop, {anchor = 'center', additionalFrameLevel = 2}),
 				right = UI:CreateText(cb.backdrop, {anchor = 'right', xOffset = -(h/10), additionalFrameLevel = 2})
   }
-	cb.icon = CreateIcon();
+	cb.icon, cb.border = CreateIcon()
 
 
 	function cb:IsActive()
@@ -516,17 +517,19 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 					 API:UnitCastingInfo(opt.unit).name or ''
 	end
 	function cb:UpdateBackdrop(isActive)
-		if isActive == true then
 			local min, max, cur = opt.backdrop:GetValues()
 			self.backdrop:SetMinMaxValues(min, max)
 			self.backdrop:SetValue(cur)
-			self.backdrop:Show()
-		else
-			if opt.backdrop.alwaysVisible == true then
-				self.backdrop:Show()
+			if isActive then
+				local dur, exp = self:DurationInfo()
+				local now = GetTime()
+				region.bar:SetMinMaxValues(exp-dur, exp)
+				region.bar:SetValue(now)
+				region.bar:Show()
 			else
-				self.backdrop:Hide()
-			end
+				region.bar:SetMinMaxValues(0, 100)
+				region.bar:SetValue(0)
+				region.bar:Hide()
 		end
 	end
 	function cb:UpdateTexts(isActive)
@@ -541,22 +544,22 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 		self.text.right:SetText(opt.backdrop:GetText(opt.backdrop:GetValues()))
 	end
 	function cb:UpdateAction(isActive)
-		if opt.action:IsActive() then
+		if isActive then
 			region.bar:SetForegroundColor(opt.action.color.r, opt.action.color.g, opt.action.color.b, opt.action.color.a)
 		else
 			region.bar:SetForegroundColor(opt.defaultColor.r, opt.defaultColor.g, opt.defaultColor.b, opt.defaultColor.a)
 		end
 	end
 	function cb:UpdateIcon(isActive)
-		if opt.icon.enabled == true then
+		if opt.icon.enabled == true and isActive then
 				local x = API:UnitCastingInfo(opt.unit)
 				if x.name == nil then x = API:UnitChannelInfo(opt.unit) end
 				self.icon.texture:SetTexture(x.texture)
 				self.icon:Show()
-				-- self.border:Show()
+				self.border:Show()
 			else
 				self.icon:Hide()
-				-- self.border:Hide()
+				self.border:Hide()
 		end
 	end
 	function cb:Update()
@@ -564,7 +567,7 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 		self:UpdateIcon(isActive)
 		self:UpdateAction(isActive)
 		self:UpdateBackdrop(isActive)
-		self:UpdateTexts(isActive)
+	  self:UpdateTexts(isActive)
 	end
 
 	env.castbar = cb
