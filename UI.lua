@@ -421,7 +421,7 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 		alwaysVisible = false
 	})
 	H:SetOpt(opt, 'action', {
-		IsActive = function() return false end,
+		IsActive = function(self) return false end,
 		color = {r=1,g=0,b=0,a=0.25}
 	})
 	local r,g,b,a = region.bar:GetForegroundColor()
@@ -456,7 +456,6 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 												opt.backdrop.color.b, opt.backdrop.color.a)
 		return f
 	end
-	local XYZ
 	local function CreateIcon()
 		if opt.icon.enabled ~= true then return nil end
 		local iFrame = CreateFrame('frame', nil, region)
@@ -465,7 +464,6 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 		local bTex = iFrame:CreateTexture(nil, 'BACKGROUND')
 		local h = opt.icon.height or opt.icon.anchor.relativeTo:GetHeight()
 		local w = opt.icon.width or opt.icon.anchor.relativeTo:GetHeight()
-		XYZ = bFrame
 		bTex:SetTexture(opt.icon.background)
 		bTex:SetAllPoints(bFrame)
 		bTex:SetVertexColor(0, 0, 0, 1)
@@ -544,7 +542,7 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 		self.text.right:SetText(opt.backdrop:GetText(opt.backdrop:GetValues()))
 	end
 	function cb:UpdateAction(isActive)
-		if isActive then
+		if isActive and opt.action:IsActive() then
 			region.bar:SetForegroundColor(opt.action.color.r, opt.action.color.g, opt.action.color.b, opt.action.color.a)
 		else
 			region.bar:SetForegroundColor(opt.defaultColor.r, opt.defaultColor.g, opt.defaultColor.b, opt.defaultColor.a)
