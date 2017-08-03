@@ -512,22 +512,28 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 	end
 	function cb:GetName()
 		return API:UnitCastingInfo(opt.unit).name or
-					 API:UnitCastingInfo(opt.unit).name or ''
+					 API:UnitChannelInfo(opt.unit).name or ''
 	end
 	function cb:UpdateBackdrop(isActive)
 			local min, max, cur = opt.backdrop:GetValues()
 			self.backdrop:SetMinMaxValues(min, max)
 			self.backdrop:SetValue(cur)
-			if isActive then
-				local dur, exp = self:DurationInfo()
-				local now = GetTime()
-				region.bar:SetMinMaxValues(exp-dur, exp)
-				region.bar:SetValue(now)
-				region.bar:Show()
-			else
-				region.bar:SetMinMaxValues(0, 100)
-				region.bar:SetValue(0)
-				region.bar:Hide()
+	end
+	function cb:UpdateStatusBar(isActive)
+		if isActive then
+			local dur, exp = self:DurationInfo()
+			local now = GetTime()
+			local value = dur-(exp-now)
+			if UnitChannelInfo(opt.unit) ~= nil then
+				value = exp-now
+			end
+			region.bar:SetMinMaxValues(0, dur)
+			region.bar:SetValue(value)
+			region.bar:Show()
+		else
+			region.bar:SetMinMaxValues(0, 100)
+			region.bar:SetValue(0)
+			region.bar:Hide()
 		end
 	end
 	function cb:UpdateTexts(isActive)
@@ -565,6 +571,7 @@ function Kazzak.Boop.UI:CreateCastBar(env, opt)
 		self:UpdateIcon(isActive)
 		self:UpdateAction(isActive)
 		self:UpdateBackdrop(isActive)
+		self:UpdateStatusBar(isActive)
 	  self:UpdateTexts(isActive)
 	end
 
