@@ -41,6 +41,8 @@ function Kazzak.Boop.Lib:GetSpellIcon(name)
 end
 
 function Kazzak.Boop.Lib:GetRemainingCooldown(name, ignore_gcd)
+    if not name then return -1 end
+    
     local start, duration = GetSpellCooldown(name)
     local remaining = 0
 
@@ -77,7 +79,7 @@ function Kazzak.Boop.Lib:ShortenNumber(number)
     if not number then return end
 
     local affixes = { '', 'k', 'm', 'b' }
-    
+
     local affix = 1
     local dec = 0
     local num1 = math.abs(number)

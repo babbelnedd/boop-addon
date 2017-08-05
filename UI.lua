@@ -124,8 +124,19 @@ function UI:SetupIconFrameTexture(tex, opt)
 end
 
 function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
-	-- Problems:
-	-- changing a talent makes this throw
+  local function GetSpellID(spellID)
+		local spellID = spellID
+		if type(spellID) == 'table' then
+			for i, sid in ipairs(spellID) do
+				if IsSpellKnown(sid) then
+					return sid
+				end
+			end
+		end
+		return spellID
+	end
+
+
 	Kazzak.Boop.FRAMES.ActionBarItems = Kazzak.Boop.FRAMES.ActionBarItems or {}
 	local ABI = Kazzak.Boop.FRAMES.ActionBarItems
 
@@ -134,16 +145,6 @@ function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 	local env = env
 	local spellID = spellID
 	local opt = opt or {}
-
-	if type(spellID) == 'table' then
-		for i, sid in ipairs(spellID) do
-			if IsSpellKnown(sid) then
-				spellID = sid
-				break
-			end
-		end
-	end
-	env.selectedTalent = spellID
 	local region = WeakAuras.regions[env.id].region
 	H:SetOpt(opt, 'threshold', 3)
 	H:SetOpt(opt, 'useBuff', true)
@@ -164,12 +165,17 @@ function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 			}
 		})
 
-	env.spellID = spellID
-	env.name = API:GetSpellInfo(spellID).name
-	env.icon = L:GetSpellIcon(spellID)
+  env.selectedTalent = GetSpellID(spellID)
+	env.spellID = GetSpellID(spellID)
+	env.name = API:GetSpellInfo(env.spellID).name
+	env.icon = L:GetSpellIcon(env.spellID)
 	env.text = {}
 	env.texture = {	}
 	env.text.center = F.textCenter or UI:CreateText(region, { fontSize = 18	})
+
+	-- DevTools_Dump(spellID)
+	-- DevTools_Dump(env.spellID)
+	-- print '-------------'
 
 	env.texture.border = F.textureBorder or CreateFrame('frame', nil, region)
 	env.texture.overlay = F.textureOverlay or CreateFrame('frame', nil, region)
@@ -195,6 +201,15 @@ function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 	F.textureOverlay = F.textureOverlay or env.texture.overlay
 
 	env.texture.overlay:Hide()
+
+	F.textureBorder:RegisterEvent('PLAYER_SPECIALIZATION_CHANGED')
+	F.textureBorder:SetScript('OnEvent', function(self, e)
+		if e ~= 'PLAYER_SPECIALIZATION_CHANGED' then return end
+		env.selectedTalent = GetSpellID(spellID)
+		env.spellID = env.selectedTalent
+		env.name = API:GetSpellInfo(env.spellID).name
+		env.icon = L:GetSpellIcon(env.spellID)
+	end)
 
 	function env:Update()
 		local cd = L:GetRemainingCooldown(self.name, true)
