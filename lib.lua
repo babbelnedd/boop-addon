@@ -71,3 +71,31 @@ function Kazzak.Boop.Lib:GetGCD(id)
     return false
   end
 end
+
+function Kazzak.Boop.Lib:ShortenNumber(number)
+    if type(number) ~= "number" then  number = tonumber(number) end
+    if not number then return end
+
+    local affixes = { '', 'k', 'm', 'b' }
+    
+    local affix = 1
+    local dec = 0
+    local num1 = math.abs(number)
+    while num1 >= 1000 and affix < #affixes do
+        num1 = num1 / 1000
+        affix = affix + 1
+    end
+    if affix > 1 then
+        dec = 2
+        local num2 = num1
+        while num2 >= 10 do
+            num2 = num2 / 10
+            dec = dec - 1
+        end
+    end
+    if number < 0 then
+        num1 = -num1
+    end
+
+    return string.format("%."..dec.."f"..affixes[affix], num1)
+end
