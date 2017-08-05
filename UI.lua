@@ -82,9 +82,55 @@ function Kazzak.Boop.UI:CreateIconFrame(parent, opt)
   return frame
 end
 
+function Kazzak.Boop.UI:SetupIconFrame(frame, tex, opt)
+	local frame = frame
+  local opt = opt or {}
+	local parent = frame:GetParent()
+
+  H:SetOpt(opt, 'multiplier', 1.1)
+  H:SetOpt(opt, 'frameLevel', parent:GetFrameLevel() + 1)
+  H:SetOpt(opt, 'anchor', 'TOPLEFT')
+  H:SetOpt(opt, 'texCoord', {l=0, r=1, t=0, b=1})
+  H:SetOpt(opt, 'backdrop', {r=1,g=1,b=1,a=1})
+
+  local w, h = parent:GetWidth(), parent:GetHeight()
+  local diffW, diffH = (w * opt.multiplier) - w,
+                       (h * opt.multiplier) - h
+
+  --local frame = CreateFrame('frame', nil, parent)
+  frame:SetFrameLevel(opt.frameLevel)
+  frame:SetSize(w * opt.multiplier, h * opt.multiplier)
+	frame.texture = UI:SetupIconFrameTexture(tex, opt)
+  frame:SetPoint(opt.anchor, -1 * diffW/2, diffH/2)
+  frame:Show()
+  return frame
+end
+
+function UI:SetupIconFrameTexture(tex, opt)
+	local opt = opt or {}
+	H:SetOpt(opt, 'texture', '')
+	H:SetOpt(opt, 'backdrop', {r=1,g=1,b=1,a=1})
+	H:SetOpt(opt, 'texCoord', {l=0,r=1,t=0,b=1})
+
+
+	--local tex = frame:CreateTexture(nil, 'BACKGROUND')
+	tex:SetTexture(opt.texture)
+	tex:SetVertexColor(opt.backdrop.r, opt.backdrop.g,
+										 opt.backdrop.b, opt.backdrop.a)
+	tex:SetTexCoord(opt.texCoord.l, opt.texCoord.r,
+									opt.texCoord.t, opt.texCoord.b)
+	tex:SetAllPoints(tex:GetParent())
+	return tex
+end
+
 function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 	-- Problems:
 	-- changing a talent makes this throw
+	Kazzak.Boop.FRAMES.ActionBarItems = Kazzak.Boop.FRAMES.ActionBarItems or {}
+	local ABI = Kazzak.Boop.FRAMES.ActionBarItems
+
+	ABI[env.id] = ABI[env.id] or {}
+	local F = ABI[env.id]
 	local env = env
 	local spellID = spellID
 	local opt = opt or {}
@@ -121,27 +167,32 @@ function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 	env.spellID = spellID
 	env.name = API:GetSpellInfo(spellID).name
 	env.icon = L:GetSpellIcon(spellID)
-	env.text = {
-		center = UI:CreateText(region, {
-			fontSize = 18
-		})
-	}
-	env.texture = {
-		border = UI:CreateIconFrame(region, {
-			texture = 'interface\\addons\\boop\\media\\textures\\Normal_NS',
-			multiplier = 1.166666666666667,
-			frameLevel = region:GetFrameLevel() + 2,
-			color = opt.color.default
-		}),
+	env.text = {}
+	env.texture = {	}
+	env.text.center = F.textCenter or UI:CreateText(region, { fontSize = 18	})
 
-		overlay = UI:CreateIconFrame(region, {
-			texture = Kazzak.Boop.Media.Background.Solid,
-			multiplier = 1,
-			anchor = 'BOTTOM',
-			backdrop = {r = 0.1, g = 0.1, b = 0.1, a = 0.75},
-			frameLevel = region:GetFrameLevel() + 1
-		})
-	}
+	env.texture.border = F.textureBorder or CreateFrame('frame', nil, region)
+	env.texture.overlay = F.textureOverlay or CreateFrame('frame', nil, region)
+	F.textureBorderTex = F.textureBorderTex or env.texture.border:CreateTexture(nil, 'BACKGROUND')
+	F.textureOverlayTex = F.textureOverlayTex or env.texture.overlay:CreateTexture(nil, 'BACKGROUND')
+
+	env.texture.border = UI:SetupIconFrame(env.texture.border, F.textureBorderTex, {
+		texture = 'interface\\addons\\boop\\media\\textures\\Normal_NS',
+		multiplier = 1.166666666666667,
+		frameLevel = region:GetFrameLevel() + 2,
+		color = opt.color.default })
+	env.texture.overlay = UI:SetupIconFrame(env.texture.overlay, F.textureOverlayTex, {
+		texture = Kazzak.Boop.Media.Background.Solid,
+		backdrop = {r = 0.1, g = 0.1, b = 0.1, a = 0.75},
+		multiplier = 1,
+		anchor = 'BOTTOM',
+		frameLevel = region:GetFrameLevel() + 1 })
+
+  F.textureBorderTex = env.texture.border.texture
+	F.textureOverlayTex = env.texture.overlay.texture
+	F.textCenter = F.textCenter or env.text.center
+	F.textureBorder = F.textureBorder or env.texture.border
+	F.textureOverlay = F.textureOverlay or env.texture.overlay
 
 	env.texture.overlay:Hide()
 
@@ -204,6 +255,189 @@ function Kazzak.Boop.UI:ActionbarItem(spellID, env, opt)
 	return env
 end
 
+function Kazzak.Boop.UI:CreateCastBar(env, opt)
+	local env = env
+	local region = WeakAuras.regions[env.id].region
+	local opt = opt or {}
+
+	H:SetOpt(opt, 'unit', 'player')
+	H:SetOpt(opt, 'backdrop', {
+		GetValues = function()
+			local cur, max = math.max(0, UnitHealth(opt.unit)),
+							         math.max(1, UnitHealthMax(opt.unit))
+
+			return 0, max, cur
+		end,
+		GetText = function(self, min, max, cur)
+			local p = cur / max * 100;
+		  return string.format('%.f%%', p)
+		 end,
+		texture = Kazzak.Boop.Media.Background.Solid,
+		color = {r=0.33,g=0.33,b=0.33,a=1},
+		backgroundColor = {r=0,g=0,b=0,a=1},
+		parent = region,
+		alwaysVisible = false
+	})
+	H:SetOpt(opt, 'action', {
+		IsActive = function(self) return false end,
+		color = {r=1,g=0,b=0,a=0.25}
+	})
+	local r,g,b,a = region.bar:GetForegroundColor()
+	H:SetOpt(opt, 'defaultColor', {r=r,g=g,b=b,a=a})
+	H:SetOpt(opt, 'icon', {
+		enabled = false,
+		background = Kazzak.Boop.Media.Background.Solid,
+		height = nil,
+		width = nil,
+		borderSize = 1,
+		anchor = {
+			relativeTo = nil,
+			point = 'RIGHT',
+			relativePoint = 'LEFT',
+			xOffset = 0,
+			yOffset = 0
+		}
+	})
+
+	local function CreateStatusBar()
+		--local f = CreateFrame('statusbar', nil, opt.backdrop.parent)
+		--local f = CreateFrame('statusbar', nil, UIParent)
+		local f = CreateFrame('statusbar', nil, region)
+		f:SetFrameLevel(math.max(0, region:GetFrameLevel() - 1))
+		f:SetPoint('TOPLEFT', region, 'TOPLEFT', 0, 0)
+		f:SetSize(region:GetSize())
+		f:SetBackdrop({ bgFile = opt.backdrop.texture })
+		f:SetBackdropColor(opt.backdrop.backgroundColor.r, opt.backdrop.backgroundColor.g,
+											 opt.backdrop.backgroundColor.b, opt.backdrop.backgroundColor.a)
+		f:SetStatusBarTexture(opt.backdrop.texture)
+		f:SetStatusBarColor(opt.backdrop.color.r, opt.backdrop.color.g,
+												opt.backdrop.color.b, opt.backdrop.color.a)
+		return f
+	end
+	local function CreateIcon()
+		if opt.icon.enabled ~= true then return nil end
+		local iFrame = CreateFrame('frame', nil, region)
+		local iTex = iFrame:CreateTexture(nil, 'ARTWORK')
+		local bFrame = CreateFrame('frame', nil, iFrame)
+		local bTex = iFrame:CreateTexture(nil, 'BACKGROUND')
+		local h = opt.icon.height or opt.icon.anchor.relativeTo:GetHeight()
+		local w = opt.icon.width or opt.icon.anchor.relativeTo:GetHeight()
+		bTex:SetTexture(opt.icon.background)
+		bTex:SetAllPoints(bFrame)
+		bTex:SetVertexColor(0, 0, 0, 1)
+		bFrame.texture = bTex
+		bFrame:SetPoint('TOPLEFT', -1, 1)
+		bFrame:SetSize(w, h)
+		bFrame.texture = bTex
+
+		iFrame:SetSize(w - opt.icon.borderSize, h - opt.icon.borderSize)
+		iTex:SetAllPoints(iFrame)
+		iTex:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+		iFrame.texture = iTex
+		iFrame:SetPoint(opt.icon.anchor.point, opt.icon.anchor.relativeTo,
+									  opt.icon.anchor.relativePoint, opt.icon.anchor.xOffset,
+										opt.icon.anchor.yOffset)
+
+
+		bFrame:Hide()
+		iFrame:Hide()
+		return iFrame, bFrame
+	end
+
+	local h = region:GetHeight()
+	local cb = {}
+	cb.backdrop = CreateStatusBar()
+	cb.text = {
+				left = UI:CreateText(cb.backdrop, {anchor = 'left', xOffset = h/10, additionalFrameLevel = 2}),
+				center = UI:CreateText(cb.backdrop, {anchor = 'center', additionalFrameLevel = 2}),
+				right = UI:CreateText(cb.backdrop, {anchor = 'right', xOffset = -(h/10), additionalFrameLevel = 2})
+  }
+	cb.icon, cb.border = CreateIcon()
+
+
+	function cb:IsActive()
+		return API:UnitCastingInfo(opt.unit).name ~= nil or
+					 API:UnitChannelInfo(opt.unit).name ~= nil or false
+	end
+	function cb:DurationInfo()
+		local _,_,_,_,start,finish = UnitCastingInfo(opt.unit)
+		if start == nil then _,_,_,_,start,finish = UnitChannelInfo(opt.unit) end
+		if start == nil then start,finish = 0,0 end
+		--if start == nil then start,finish = 0, 0 end
+		local duration = ((finish - start)/1000)
+		local expiration = (finish/1000)
+		return duration, expiration
+	end
+	function cb:GetName()
+		return API:UnitCastingInfo(opt.unit).name or
+					 API:UnitChannelInfo(opt.unit).name or ''
+	end
+	function cb:UpdateBackdrop(isActive)
+			local min, max, cur = opt.backdrop:GetValues()
+			self.backdrop:SetMinMaxValues(min, max)
+			self.backdrop:SetValue(cur)
+	end
+	function cb:UpdateStatusBar(isActive)
+		if isActive then
+			local dur, exp = self:DurationInfo()
+			local now = GetTime()
+			local value = dur-(exp-now)
+			if UnitChannelInfo(opt.unit) ~= nil then
+				value = exp-now
+			end
+			region.bar:SetMinMaxValues(0, dur)
+			region.bar:SetValue(value)
+			region.bar:Show()
+		else
+			region.bar:SetMinMaxValues(0, 100)
+			region.bar:SetValue(0)
+			region.bar:Hide()
+		end
+	end
+	function cb:UpdateTexts(isActive)
+		local rem = H:Round(select(2, self:DurationInfo()) - GetTime(), 1)
+		if rem > 0 then
+			if not string.match(rem, '%.') then rem = rem..'.0' end
+			self.text.left:SetText(rem)
+		else
+			self.text.left:SetText('')
+		end
+		self.text.center:SetText(self:GetName())
+		self.text.right:SetText(opt.backdrop:GetText(opt.backdrop:GetValues()))
+	end
+	function cb:UpdateAction(isActive)
+		if isActive and opt.action:IsActive() then
+			region.bar:SetForegroundColor(opt.action.color.r, opt.action.color.g, opt.action.color.b, opt.action.color.a)
+		else
+			region.bar:SetForegroundColor(opt.defaultColor.r, opt.defaultColor.g, opt.defaultColor.b, opt.defaultColor.a)
+		end
+	end
+	function cb:UpdateIcon(isActive)
+		if opt.icon.enabled == true and isActive then
+				local x = API:UnitCastingInfo(opt.unit)
+				if x.name == nil then x = API:UnitChannelInfo(opt.unit) end
+				self.icon.texture:SetTexture(x.texture)
+				self.icon:Show()
+				self.border:Show()
+			else
+				self.icon:Hide()
+				self.border:Hide()
+		end
+	end
+	function cb:Update()
+		local isActive = self:IsActive()
+		self:UpdateIcon(isActive)
+		self:UpdateAction(isActive)
+		self:UpdateBackdrop(isActive)
+		self:UpdateStatusBar(isActive)
+	  self:UpdateTexts(isActive)
+	end
+
+	env.castbar = cb
+	return env
+end
+
+--[[
 function Kazzak.Boop.UI:InitializeAuraBars(env, opt)
 	local env = env
 	local region = WeakAuras.regions[env.id].region
@@ -396,185 +630,4 @@ function Kazzak.Boop.UI:InitializeAuraBars(env, opt)
 
 	return env
 end
-
-function Kazzak.Boop.UI:CreateCastBar(env, opt)
-	local env = env
-	local region = WeakAuras.regions[env.id].region
-	local opt = opt or {}
-
-	H:SetOpt(opt, 'unit', 'player')
-	H:SetOpt(opt, 'backdrop', {
-		GetValues = function()
-			local cur, max = math.max(0, UnitHealth(opt.unit)),
-							         math.max(1, UnitHealthMax(opt.unit))
-
-			return 0, max, cur
-		end,
-		GetText = function(self, min, max, cur)
-			local p = cur / max * 100;
-		  return string.format('%.f%%', p)
-		 end,
-		texture = Kazzak.Boop.Media.Background.Solid,
-		color = {r=0.33,g=0.33,b=0.33,a=1},
-		backgroundColor = {r=0,g=0,b=0,a=1},
-		parent = region,
-		alwaysVisible = false
-	})
-	H:SetOpt(opt, 'action', {
-		IsActive = function(self) return false end,
-		color = {r=1,g=0,b=0,a=0.25}
-	})
-	local r,g,b,a = region.bar:GetForegroundColor()
-	H:SetOpt(opt, 'defaultColor', {r=r,g=g,b=b,a=a})
-	H:SetOpt(opt, 'icon', {
-		enabled = false,
-		background = Kazzak.Boop.Media.Background.Solid,
-		height = nil,
-		width = nil,
-		borderSize = 1,
-		anchor = {
-			relativeTo = nil,
-			point = 'RIGHT',
-			relativePoint = 'LEFT',
-			xOffset = 0,
-			yOffset = 0
-		}
-	})
-
-	local function CreateStatusBar()
-		--local f = CreateFrame('statusbar', nil, opt.backdrop.parent)
-		--local f = CreateFrame('statusbar', nil, UIParent)
-		local f = CreateFrame('statusbar', nil, region)
-		f:SetFrameLevel(math.max(0, region:GetFrameLevel() - 1))
-		f:SetPoint('TOPLEFT', region, 'TOPLEFT', 0, 0)
-		f:SetSize(region:GetSize())
-		f:SetBackdrop({ bgFile = opt.backdrop.texture })
-		f:SetBackdropColor(opt.backdrop.backgroundColor.r, opt.backdrop.backgroundColor.g,
-											 opt.backdrop.backgroundColor.b, opt.backdrop.backgroundColor.a)
-		f:SetStatusBarTexture(opt.backdrop.texture)
-		f:SetStatusBarColor(opt.backdrop.color.r, opt.backdrop.color.g,
-												opt.backdrop.color.b, opt.backdrop.color.a)
-		return f
-	end
-	local function CreateIcon()
-		if opt.icon.enabled ~= true then return nil end
-		local iFrame = CreateFrame('frame', nil, region)
-		local iTex = iFrame:CreateTexture(nil, 'ARTWORK')
-		local bFrame = CreateFrame('frame', nil, iFrame)
-		local bTex = iFrame:CreateTexture(nil, 'BACKGROUND')
-		local h = opt.icon.height or opt.icon.anchor.relativeTo:GetHeight()
-		local w = opt.icon.width or opt.icon.anchor.relativeTo:GetHeight()
-		bTex:SetTexture(opt.icon.background)
-		bTex:SetAllPoints(bFrame)
-		bTex:SetVertexColor(0, 0, 0, 1)
-		bFrame.texture = bTex
-		bFrame:SetPoint('TOPLEFT', -1, 1)
-		bFrame:SetSize(w, h)
-		bFrame.texture = bTex
-
-		iFrame:SetSize(w - opt.icon.borderSize, h - opt.icon.borderSize)
-		iTex:SetAllPoints(iFrame)
-		iTex:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-		iFrame.texture = iTex
-		iFrame:SetPoint(opt.icon.anchor.point, opt.icon.anchor.relativeTo,
-									  opt.icon.anchor.relativePoint, opt.icon.anchor.xOffset,
-										opt.icon.anchor.yOffset)
-
-
-		bFrame:Hide()
-		iFrame:Hide()
-		return iFrame, bFrame
-	end
-
-	local h = region:GetHeight()
-	local cb = {}
-	cb.backdrop = CreateStatusBar()
-	cb.text = {
-				left = UI:CreateText(cb.backdrop, {anchor = 'left', xOffset = h/10, additionalFrameLevel = 2}),
-				center = UI:CreateText(cb.backdrop, {anchor = 'center', additionalFrameLevel = 2}),
-				right = UI:CreateText(cb.backdrop, {anchor = 'right', xOffset = -(h/10), additionalFrameLevel = 2})
-  }
-	cb.icon, cb.border = CreateIcon()
-
-
-	function cb:IsActive()
-		return API:UnitCastingInfo(opt.unit).name ~= nil or
-					 API:UnitChannelInfo(opt.unit).name ~= nil or false
-	end
-	function cb:DurationInfo()
-		local _,_,_,_,start,finish = UnitCastingInfo(opt.unit)
-		if start == nil then _,_,_,_,start,finish = UnitChannelInfo(opt.unit) end
-		if start == nil then start,finish = 0,0 end
-		--if start == nil then start,finish = 0, 0 end
-		local duration = ((finish - start)/1000)
-		local expiration = (finish/1000)
-		return duration, expiration
-	end
-	function cb:GetName()
-		return API:UnitCastingInfo(opt.unit).name or
-					 API:UnitChannelInfo(opt.unit).name or ''
-	end
-	function cb:UpdateBackdrop(isActive)
-			local min, max, cur = opt.backdrop:GetValues()
-			self.backdrop:SetMinMaxValues(min, max)
-			self.backdrop:SetValue(cur)
-	end
-	function cb:UpdateStatusBar(isActive)
-		if isActive then
-			local dur, exp = self:DurationInfo()
-			local now = GetTime()
-			local value = dur-(exp-now)
-			if UnitChannelInfo(opt.unit) ~= nil then
-				value = exp-now
-			end
-			region.bar:SetMinMaxValues(0, dur)
-			region.bar:SetValue(value)
-			region.bar:Show()
-		else
-			region.bar:SetMinMaxValues(0, 100)
-			region.bar:SetValue(0)
-			region.bar:Hide()
-		end
-	end
-	function cb:UpdateTexts(isActive)
-		local rem = H:Round(select(2, self:DurationInfo()) - GetTime(), 1)
-		if rem > 0 then
-			if not string.match(rem, '%.') then rem = rem..'.0' end
-			self.text.left:SetText(rem)
-		else
-			self.text.left:SetText('')
-		end
-		self.text.center:SetText(self:GetName())
-		self.text.right:SetText(opt.backdrop:GetText(opt.backdrop:GetValues()))
-	end
-	function cb:UpdateAction(isActive)
-		if isActive and opt.action:IsActive() then
-			region.bar:SetForegroundColor(opt.action.color.r, opt.action.color.g, opt.action.color.b, opt.action.color.a)
-		else
-			region.bar:SetForegroundColor(opt.defaultColor.r, opt.defaultColor.g, opt.defaultColor.b, opt.defaultColor.a)
-		end
-	end
-	function cb:UpdateIcon(isActive)
-		if opt.icon.enabled == true and isActive then
-				local x = API:UnitCastingInfo(opt.unit)
-				if x.name == nil then x = API:UnitChannelInfo(opt.unit) end
-				self.icon.texture:SetTexture(x.texture)
-				self.icon:Show()
-				self.border:Show()
-			else
-				self.icon:Hide()
-				self.border:Hide()
-		end
-	end
-	function cb:Update()
-		local isActive = self:IsActive()
-		self:UpdateIcon(isActive)
-		self:UpdateAction(isActive)
-		self:UpdateBackdrop(isActive)
-		self:UpdateStatusBar(isActive)
-	  self:UpdateTexts(isActive)
-	end
-
-	env.castbar = cb
-	return env
-end
+]]--
